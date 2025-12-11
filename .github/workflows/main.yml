@@ -1,4 +1,4 @@
-name: Compile
+name: Build The Game
 
 on:
   pull_request:
@@ -6,9 +6,14 @@ on:
   push:
     branches: [developmentalist]
   workflow_dispatch:
+
 jobs:
+
+  # =======================
+  # Build Caches
+  # =======================
   BuildCaches:
-    name: ${{ matrix.name }}
+    name: Build Caches
     permissions: write-all
     strategy:
       matrix:
@@ -16,30 +21,56 @@ jobs:
           - name: Linux
             os: ubuntu-latest
             setupScript: sh ./setup/unix.sh
-            CACHE_NAME: H-Slice.desktop-cache
-
+            CACHE_BUILD: H-Slice.build-linux
+            CACHE_LIBS: H-Slice.desktop-cache
+          - name: Windows
+            os: windows-2022
+            setupScript: sh ./setup/windows.sh
+            CACHE_BUILD: H-Slice.build-windows
+            CACHE_LIBS: H-Slice.desktop-cache
           - name: Mobile
             os: macos-latest
             setupScript: sh ./setup/mobile.sh
-            CACHE_NAME: H-Slice.mobile-cache
-    uses: ./.github/workflows/dependencies.yml
-    with:
-      os: ${{ matrix.os }}
-      CACHE_NAME: ${{ matrix.CACHE_NAME }}
-      setupScript: ${{ matrix.setupScript }}
-  BuildMacos:
-    name: macos
-    needs: BuildCaches
-    permissions: write-all
-    uses: ./.github/workflows/mac-universal.yml
-    with:
-      exportPath: macos
-      artifactName: H-Slice.0.2.3.macos
-      artifactPath: export/release/macos/bin/*
-      cachePath: H-Slice.build-macos
-      cacheLibrariesPath: H-Slice.mobile-cache
+            CACHE_BUILD: H-Slice.build-mobile
+            CACHE_LIBS: H-Slice.mobile-cache
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup dependencies
+        run: ${{ matrix.setupScript }}
+
+      - name: Restore Build Cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ matrix.CACHE_BUILD }}
+          key: ${{ runner.os }}-build-${{ hashFiles('**/*.hx') }}
+          restore-keys: |
+            ${{ runner.os }}-build-
+
+      - name: Restore Libraries Cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ matrix.CACHE_LIBS }}
+          key: ${{ runner.os }}-libs-${{ hashFiles('**/*.hx') }}
+          restore-keys: |
+            ${{ runner.os }}-libs-
+
+      - name: Save Cache
+        if: success()
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ matrix.CACHE_BUILD }}
+            ${{ matrix.CACHE_LIBS }}
+          key: ${{ runner.os }}-full-${{ hashFiles('**/*.hx') }}
+
+  # =======================
+  # Build Desktop & Linux
+  # =======================
   BuildDesktop:
-    name: ${{ matrix.name }}
+    name: Build Desktop
     needs: BuildCaches
     permissions: write-all
     strategy:
@@ -70,30 +101,48 @@ jobs:
       exportPath: ${{ matrix.exportPath }}
       artifactName: ${{ matrix.artifactName }}
       artifactPath: ${{ matrix.artifactPath }}
-      cachePath: ${{matrix.cachePath}}
+      cachePath: ${{ matrix.cachePath }}
       cacheLibrariesPath: ${{ matrix.cacheLibrariesPath }}
 
-  BuildMobile:
-    permissions: write-all
+  # =======================
+  # Build macOS
+  # =======================
+  BuildMacos:
+    name: Build macOS
     needs: BuildCaches
-    name: ${{ matrix.name }}
+    permissions: write-all
+    uses: ./.github/workflows/mac-universal.yml
+    with:
+      exportPath: macos
+      artifactName: H-Slice.0.2.3.macos
+      artifactPath: export/release/macos/bin/*
+      cachePath: H-Slice.build-macos
+      cacheLibrariesPath: H-Slice.mobile-cache
+
+  # =======================
+  # Build Mobile (Android/iOS)
+  # =======================
+  BuildMobile:
+    name: Build Mobile
+    needs: BuildCaches
+    permissions: write-all
     strategy:
       matrix:
         include:
           - name: Android
             os: macos-15
-            buildArgs: "android"
+            buildArgs: android
             exportPath: android
             artifactName: H-Slice.0.2.3.android
-            artifactPath: "export/release/android/bin/app/build/outputs/apk/release/*.apk"
+            artifactPath: export/release/android/bin/app/build/outputs/apk/release/*.apk
             cachePath: H-Slice.build-android
             cacheLibrariesPath: H-Slice.mobile-cache
           - name: iOS
             os: macos-15
-            buildArgs: "ios -nosign"
+            buildArgs: ios -nosign
             exportPath: ios
             artifactName: H-Slice.0.2.3.ios
-            artifactPath: "export/release/ios/build/Release-iphoneos/*.ipa"
+            artifactPath: export/release/ios/build/Release-iphoneos/*.ipa
             cachePath: H-Slice.build-ios
             cacheLibrariesPath: H-Slice.mobile-cache
     uses: ./.github/workflows/build.yml
@@ -105,5 +154,5 @@ jobs:
       exportPath: ${{ matrix.exportPath }}
       artifactName: ${{ matrix.artifactName }}
       artifactPath: ${{ matrix.artifactPath }}
-      cachePath: ${{matrix.cachePath}}
+      cachePath: ${{ matrix.cachePath }}
       cacheLibrariesPath: ${{ matrix.cacheLibrariesPath }}
