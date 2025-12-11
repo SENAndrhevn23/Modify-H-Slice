@@ -1,17 +1,13 @@
-name: Build The Game
+name: Compile
 
 on:
-  pull_request:
-    branches: [master, developmentalist]
   push:
-    branches: [developmentalist]
+    branches: [master]
+  pull_request:
+    branches: [master]
   workflow_dispatch:
 
 jobs:
-
-  # =======================
-  # Build Caches
-  # =======================
   BuildCaches:
     name: Build Caches
     permissions: write-all
@@ -21,54 +17,56 @@ jobs:
           - name: Linux
             os: ubuntu-latest
             setupScript: sh ./setup/unix.sh
-            CACHE_BUILD: H-Slice.build-linux
-            CACHE_LIBS: H-Slice.desktop-cache
-          - name: Windows
-            os: windows-2022
-            setupScript: sh ./setup/windows.sh
-            CACHE_BUILD: H-Slice.build-windows
-            CACHE_LIBS: H-Slice.desktop-cache
+            CACHE_NAME: H-Slice.desktop-cache
+
           - name: Mobile
             os: macos-latest
             setupScript: sh ./setup/mobile.sh
-            CACHE_BUILD: H-Slice.build-mobile
-            CACHE_LIBS: H-Slice.mobile-cache
-
+            CACHE_NAME: H-Slice.mobile-cache
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: Setup dependencies
+      - name: Debug matrix
+        run: echo "Building caches for ${{ matrix.name }} on ${{ matrix.os }}"
+
+      - name: Run setup script
         run: ${{ matrix.setupScript }}
 
-      - name: Restore Build Cache
+      - name: Restore cache
         uses: actions/cache@v3
         with:
-          path: ${{ matrix.CACHE_BUILD }}
-          key: ${{ runner.os }}-build-${{ hashFiles('**/*.hx') }}
-          restore-keys: |
-            ${{ runner.os }}-build-
+          path: ${{ matrix.CACHE_NAME }}
+          key: ${{ matrix.CACHE_NAME }}-${{ runner.os }}-${{ hashFiles('**/*') }}
 
-      - name: Restore Libraries Cache
+      - name: Save cache
         uses: actions/cache@v3
         with:
-          path: ${{ matrix.CACHE_LIBS }}
-          key: ${{ runner.os }}-libs-${{ hashFiles('**/*.hx') }}
-          restore-keys: |
-            ${{ runner.os }}-libs-
+          path: ${{ matrix.CACHE_NAME }}
+          key: ${{ matrix.CACHE_NAME }}-${{ runner.os }}-${{ hashFiles('**/*') }}
 
-      - name: Save Cache
-        if: success()
-        uses: actions/cache@v3
+  BuildMacos:
+    name: Build macOS
+    needs: BuildCaches
+    permissions: write-all
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Debug
+        run: echo "Building macOS artifact"
+
+      - name: Build macOS
+        uses: ./.github/workflows/mac-universal.yml
         with:
-          path: |
-            ${{ matrix.CACHE_BUILD }}
-            ${{ matrix.CACHE_LIBS }}
-          key: ${{ runner.os }}-full-${{ hashFiles('**/*.hx') }}
+          exportPath: macos
+          artifactName: H-Slice.0.2.3.macos
+          artifactPath: export/release/macos/bin/*
+          cachePath: H-Slice.build-macos
+          cacheLibrariesPath: H-Slice.mobile-cache
 
-  # =======================
-  # Build Desktop & Linux
-  # =======================
   BuildDesktop:
     name: Build Desktop
     needs: BuildCaches
@@ -92,36 +90,26 @@ jobs:
             artifactPath: export/release/linux/bin/*
             cachePath: H-Slice.build-linux
             cacheLibrariesPath: H-Slice.desktop-cache
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    uses: ./.github/workflows/build.yml
-    with:
-      name: ${{ matrix.name }}
-      os: ${{ matrix.os }}
-      buildArgs: ${{ matrix.buildArgs }}
-      exportPath: ${{ matrix.exportPath }}
-      artifactName: ${{ matrix.artifactName }}
-      artifactPath: ${{ matrix.artifactPath }}
-      cachePath: ${{ matrix.cachePath }}
-      cacheLibrariesPath: ${{ matrix.cacheLibrariesPath }}
+      - name: Debug
+        run: echo "Building ${{ matrix.name }} artifact on ${{ runner.os }}"
 
-  # =======================
-  # Build macOS
-  # =======================
-  BuildMacos:
-    name: Build macOS
-    needs: BuildCaches
-    permissions: write-all
-    uses: ./.github/workflows/mac-universal.yml
-    with:
-      exportPath: macos
-      artifactName: H-Slice.0.2.3.macos
-      artifactPath: export/release/macos/bin/*
-      cachePath: H-Slice.build-macos
-      cacheLibrariesPath: H-Slice.mobile-cache
+      - name: Build Desktop
+        uses: ./.github/workflows/build.yml
+        with:
+          name: ${{ matrix.name }}
+          os: ${{ matrix.os }}
+          buildArgs: ${{ matrix.buildArgs }}
+          exportPath: ${{ matrix.exportPath }}
+          artifactName: ${{ matrix.artifactName }}
+          artifactPath: ${{ matrix.artifactPath }}
+          cachePath: ${{ matrix.cachePath }}
+          cacheLibrariesPath: ${{ matrix.cacheLibrariesPath }}
 
-  # =======================
-  # Build Mobile (Android/iOS)
-  # =======================
   BuildMobile:
     name: Build Mobile
     needs: BuildCaches
@@ -145,14 +133,22 @@ jobs:
             artifactPath: export/release/ios/build/Release-iphoneos/*.ipa
             cachePath: H-Slice.build-ios
             cacheLibrariesPath: H-Slice.mobile-cache
-    uses: ./.github/workflows/build.yml
-    secrets: inherit
-    with:
-      name: ${{ matrix.name }}
-      os: ${{ matrix.os }}
-      buildArgs: ${{ matrix.buildArgs }}
-      exportPath: ${{ matrix.exportPath }}
-      artifactName: ${{ matrix.artifactName }}
-      artifactPath: ${{ matrix.artifactPath }}
-      cachePath: ${{ matrix.cachePath }}
-      cacheLibrariesPath: ${{ matrix.cacheLibrariesPath }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Debug
+        run: echo "Building ${{ matrix.name }} artifact on ${{ runner.os }}"
+
+      - name: Build Mobile
+        uses: ./.github/workflows/build.yml
+        with:
+          name: ${{ matrix.name }}
+          os: ${{ matrix.os }}
+          buildArgs: ${{ matrix.buildArgs }}
+          exportPath: ${{ matrix.exportPath }}
+          artifactName: ${{ matrix.artifactName }}
+          artifactPath: ${{ matrix.artifactPath }}
+          cachePath: ${{ matrix.cachePath }}
+          cacheLibrariesPath: ${{ matrix.cacheLibrariesPath }}
