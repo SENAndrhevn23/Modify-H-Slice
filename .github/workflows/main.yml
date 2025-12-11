@@ -4,109 +4,140 @@ on:
   pull_request:
     branches: [master, developmentalist]
   push:
-    branches: [developmentist]
+    branches: [developmentalist]
   workflow_dispatch:
 
 jobs:
+  # Build caches for all platforms
   BuildCaches:
-    name: Build Caches ${{ matrix.name }}
+    name: Build Caches
+    runs-on: ubuntu-latest
     permissions: write-all
     strategy:
       matrix:
         include:
           - name: Linux
-            os: ubuntu-latest
             setupScript: sh ./setup/unix.sh
             CACHE_NAME: H-Slice.desktop-cache
-
           - name: Mobile
-            os: macos-latest
             setupScript: sh ./setup/mobile.sh
             CACHE_NAME: H-Slice.mobile-cache
-    uses: ./.github/workflows/dependencies.yml
-    with:
-      os: ${{ matrix.os }}
-      CACHE_NAME: ${{ matrix.CACHE_NAME }}
-      setupScript: ${{ matrix.setupScript }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
+      - name: Setup matrix environment
+        run: ${{ matrix.setupScript }}
+
+      - name: Cache libraries
+        uses: actions/cache@v3
+        with:
+          path: ${{ matrix.CACHE_NAME }}
+          key: ${{ runner.os }}-${{ matrix.CACHE_NAME }}
+
+  # macOS Build
   BuildMacos:
     name: Build macOS
     needs: BuildCaches
+    runs-on: macos-latest
     permissions: write-all
-    secrets: inherit
-    uses: ./.github/workflows/mac-universal.yml
-    with:
-      exportPath: macos
-      artifactName: H-Slice.0.2.3.macos
-      artifactPath: export/release/macos/bin/*
-      cachePath: H-Slice.build-macos
-      cacheLibrariesPath: H-Slice.mobile-cache
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-  BuildDesktop:
-    name: Build Desktop ${{ matrix.name }}
-    needs: BuildCaches
-    permissions: write-all
-    strategy:
-      matrix:
-        include:
-          - name: Windows
-            os: windows-2022
-            buildArgs: windows
-            exportPath: windows
-            artifactName: H-Slice.0.2.3.windows
-            artifactPath: export/release/windows/bin/*
-            cachePath: H-Slice.build-windows
-            cacheLibrariesPath: H-Slice.desktop-cache
-          - name: Linux
-            os: ubuntu-22.04
-            buildArgs: linux
-            exportPath: linux
-            artifactName: H-Slice.0.2.3.linux
-            artifactPath: export/release/linux/bin/*
-            cachePath: H-Slice.build-linux
-            cacheLibrariesPath: H-Slice.desktop-cache
-    uses: ./.github/workflows/build.yml
-    with:
-      name: ${{ matrix.name }}
-      os: ${{ matrix.os }}
-      buildArgs: ${{ matrix.buildArgs }}
-      exportPath: ${{ matrix.exportPath }}
-      artifactName: ${{ matrix.artifactName }}
-      artifactPath: ${{ matrix.artifactPath }}
-      cachePath: ${{ matrix.cachePath }}
-      cacheLibrariesPath: ${{ matrix.cacheLibrariesPath }}
+      - name: Call macOS build workflow
+        uses: ./.github/workflows/mac-universal.yml
+        with:
+          exportPath: macos
+          artifactName: H-Slice.0.2.3.macos
+          artifactPath: export/release/macos/bin/*
+          cachePath: H-Slice.build-macos
+          cacheLibrariesPath: H-Slice.mobile-cache
 
-  BuildMobile:
-    name: Build Mobile ${{ matrix.name }}
+  # Desktop Linux Build
+  BuildDesktopLinux:
+    name: Build Desktop Linux
     needs: BuildCaches
+    runs-on: ubuntu-22.04
     permissions: write-all
-    secrets: inherit
-    strategy:
-      matrix:
-        include:
-          - name: Android
-            os: macos-latest
-            buildArgs: android
-            exportPath: android
-            artifactName: H-Slice.0.2.3.android
-            artifactPath: export/release/android/bin/app/build/outputs/apk/release/*.apk
-            cachePath: H-Slice.build-android
-            cacheLibrariesPath: H-Slice.mobile-cache
-          - name: iOS
-            os: macos-latest
-            buildArgs: "ios -nosign"
-            exportPath: ios
-            artifactName: H-Slice.0.2.3.ios
-            artifactPath: export/release/ios/build/Release-iphoneos/*.ipa
-            cachePath: H-Slice.build-ios
-            cacheLibrariesPath: H-Slice.mobile-cache
-    uses: ./.github/workflows/build.yml
-    with:
-      name: ${{ matrix.name }}
-      os: ${{ matrix.os }}
-      buildArgs: ${{ matrix.buildArgs }}
-      exportPath: ${{ matrix.exportPath }}
-      artifactName: ${{ matrix.artifactName }}
-      artifactPath: ${{ matrix.artifactPath }}
-      cachePath: ${{ matrix.cachePath }}
-      cacheLibrariesPath: ${{ matrix.cacheLibrariesPath }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Call Linux build workflow
+        uses: ./.github/workflows/build.yml
+        with:
+          name: Linux
+          os: ubuntu-22.04
+          buildArgs: linux
+          exportPath: linux
+          artifactName: H-Slice.0.2.3.linux
+          artifactPath: export/release/linux/bin/*
+          cachePath: H-Slice.build-linux
+          cacheLibrariesPath: H-Slice.desktop-cache
+
+  # Desktop Windows Build
+  BuildDesktopWindows:
+    name: Build Desktop Windows
+    needs: BuildCaches
+    runs-on: windows-2022
+    permissions: write-all
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Call Windows build workflow
+        uses: ./.github/workflows/build.yml
+        with:
+          name: Windows
+          os: windows-2022
+          buildArgs: windows
+          exportPath: windows
+          artifactName: H-Slice.0.2.3.windows
+          artifactPath: export/release/windows/bin/*
+          cachePath: H-Slice.build-windows
+          cacheLibrariesPath: H-Slice.desktop-cache
+
+  # Android Build
+  BuildAndroid:
+    name: Build Android
+    needs: BuildCaches
+    runs-on: macos-15
+    permissions: write-all
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Call Android build workflow
+        uses: ./.github/workflows/build.yml
+        with:
+          name: Android
+          os: macos-15
+          buildArgs: android
+          exportPath: android
+          artifactName: H-Slice.0.2.3.android
+          artifactPath: export/release/android/bin/app/build/outputs/apk/release/*.apk
+          cachePath: H-Slice.build-android
+          cacheLibrariesPath: H-Slice.mobile-cache
+
+  # iOS Build
+  BuildiOS:
+    name: Build iOS
+    needs: BuildCaches
+    runs-on: macos-15
+    permissions: write-all
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Call iOS build workflow
+        uses: ./.github/workflows/build.yml
+        with:
+          name: iOS
+          os: macos-15
+          buildArgs: "ios -nosign"
+          exportPath: ios
+          artifactName: H-Slice.0.2.3.ios
+          artifactPath: export/release/ios/build/Release-iphoneos/*.ipa
+          cachePath: H-Slice.build-ios
+          cacheLibrariesPath: H-Slice.mobile-cache
