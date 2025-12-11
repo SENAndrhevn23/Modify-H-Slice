@@ -2,9 +2,9 @@ name: Compile
 
 on:
   pull_request:
-    branches: [master]
+    branches: [master, developmentalist]
   push:
-    branches: [master]
+    branches: [developmentist]
   workflow_dispatch:
 
 jobs:
@@ -18,6 +18,7 @@ jobs:
             os: ubuntu-latest
             setupScript: sh ./setup/unix.sh
             CACHE_NAME: H-Slice.desktop-cache
+
           - name: Mobile
             os: macos-latest
             setupScript: sh ./setup/mobile.sh
@@ -28,6 +29,19 @@ jobs:
       CACHE_NAME: ${{ matrix.CACHE_NAME }}
       setupScript: ${{ matrix.setupScript }}
 
+  BuildMacos:
+    name: Build macOS
+    needs: BuildCaches
+    permissions: write-all
+    secrets: inherit
+    uses: ./.github/workflows/mac-universal.yml
+    with:
+      exportPath: macos
+      artifactName: H-Slice.0.2.3.macos
+      artifactPath: export/release/macos/bin/*
+      cachePath: H-Slice.build-macos
+      cacheLibrariesPath: H-Slice.mobile-cache
+
   BuildDesktop:
     name: Build Desktop ${{ matrix.name }}
     needs: BuildCaches
@@ -36,7 +50,7 @@ jobs:
       matrix:
         include:
           - name: Windows
-            runsOn: windows-2022
+            os: windows-2022
             buildArgs: windows
             exportPath: windows
             artifactName: H-Slice.0.2.3.windows
@@ -44,39 +58,34 @@ jobs:
             cachePath: H-Slice.build-windows
             cacheLibrariesPath: H-Slice.desktop-cache
           - name: Linux
-            runsOn: ubuntu-22.04
+            os: ubuntu-22.04
             buildArgs: linux
             exportPath: linux
             artifactName: H-Slice.0.2.3.linux
             artifactPath: export/release/linux/bin/*
             cachePath: H-Slice.build-linux
             cacheLibrariesPath: H-Slice.desktop-cache
-    runs-on: ${{ matrix.runsOn }}
-    steps:
-      - uses: actions/checkout@v3
-      - name: Debug Info
-        run: echo "Building Desktop ${{ matrix.name }} on ${{ runner.os }}"
-      - name: Build
-        uses: ./.github/workflows/build.yml
-        with:
-          name: ${{ matrix.name }}
-          os: ${{ matrix.runsOn }}
-          buildArgs: ${{ matrix.buildArgs }}
-          exportPath: ${{ matrix.exportPath }}
-          artifactName: ${{ matrix.artifactName }}
-          artifactPath: ${{ matrix.artifactPath }}
-          cachePath: ${{ matrix.cachePath }}
-          cacheLibrariesPath: ${{ matrix.cacheLibrariesPath }}
+    uses: ./.github/workflows/build.yml
+    with:
+      name: ${{ matrix.name }}
+      os: ${{ matrix.os }}
+      buildArgs: ${{ matrix.buildArgs }}
+      exportPath: ${{ matrix.exportPath }}
+      artifactName: ${{ matrix.artifactName }}
+      artifactPath: ${{ matrix.artifactPath }}
+      cachePath: ${{ matrix.cachePath }}
+      cacheLibrariesPath: ${{ matrix.cacheLibrariesPath }}
 
   BuildMobile:
     name: Build Mobile ${{ matrix.name }}
     needs: BuildCaches
     permissions: write-all
+    secrets: inherit
     strategy:
       matrix:
         include:
           - name: Android
-            runsOn: macos-latest
+            os: macos-latest
             buildArgs: android
             exportPath: android
             artifactName: H-Slice.0.2.3.android
@@ -84,27 +93,20 @@ jobs:
             cachePath: H-Slice.build-android
             cacheLibrariesPath: H-Slice.mobile-cache
           - name: iOS
-            runsOn: macos-latest
-            buildArgs: ios -nosign
+            os: macos-latest
+            buildArgs: "ios -nosign"
             exportPath: ios
             artifactName: H-Slice.0.2.3.ios
             artifactPath: export/release/ios/build/Release-iphoneos/*.ipa
             cachePath: H-Slice.build-ios
             cacheLibrariesPath: H-Slice.mobile-cache
-    runs-on: ${{ matrix.runsOn }}
-    steps:
-      - uses: actions/checkout@v3
-      - name: Debug Info
-        run: echo "Building Mobile ${{ matrix.name }} on ${{ runner.os }}"
-      - name: Build
-        uses: ./.github/workflows/build.yml
-        with:
-          name: ${{ matrix.name }}
-          os: ${{ matrix.runsOn }}
-          buildArgs: ${{ matrix.buildArgs }}
-          exportPath: ${{ matrix.exportPath }}
-          artifactName: ${{ matrix.artifactName }}
-          artifactPath: ${{ matrix.artifactPath }}
-          cachePath: ${{ matrix.cachePath }}
-          cacheLibrariesPath: ${{ matrix.cacheLibrariesPath }}
-        secrets: inherit
+    uses: ./.github/workflows/build.yml
+    with:
+      name: ${{ matrix.name }}
+      os: ${{ matrix.os }}
+      buildArgs: ${{ matrix.buildArgs }}
+      exportPath: ${{ matrix.exportPath }}
+      artifactName: ${{ matrix.artifactName }}
+      artifactPath: ${{ matrix.artifactPath }}
+      cachePath: ${{ matrix.cachePath }}
+      cacheLibrariesPath: ${{ matrix.cacheLibrariesPath }}
