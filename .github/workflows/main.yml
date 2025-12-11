@@ -25,47 +25,21 @@ jobs:
             CACHE_NAME: H-Slice.mobile-cache
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
+      - uses: actions/checkout@v3
       - name: Debug matrix
         run: echo "Building caches for ${{ matrix.name }} on ${{ matrix.os }}"
-
       - name: Run setup script
         run: ${{ matrix.setupScript }}
-
       - name: Restore cache
         uses: actions/cache@v3
         with:
           path: ${{ matrix.CACHE_NAME }}
           key: ${{ matrix.CACHE_NAME }}-${{ runner.os }}-${{ hashFiles('**/*') }}
-
       - name: Save cache
         uses: actions/cache@v3
         with:
           path: ${{ matrix.CACHE_NAME }}
           key: ${{ matrix.CACHE_NAME }}-${{ runner.os }}-${{ hashFiles('**/*') }}
-
-  BuildMacos:
-    name: Build macOS
-    needs: BuildCaches
-    permissions: write-all
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Debug
-        run: echo "Building macOS artifact"
-
-      - name: Build macOS
-        uses: ./.github/workflows/mac-universal.yml
-        with:
-          exportPath: macos
-          artifactName: H-Slice.0.2.3.macos
-          artifactPath: export/release/macos/bin/*
-          cachePath: H-Slice.build-macos
-          cacheLibrariesPath: H-Slice.mobile-cache
 
   BuildDesktop:
     name: Build Desktop
@@ -92,12 +66,9 @@ jobs:
             cacheLibrariesPath: H-Slice.desktop-cache
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
+      - uses: actions/checkout@v3
       - name: Debug
-        run: echo "Building ${{ matrix.name }} artifact on ${{ runner.os }}"
-
+        run: echo "Building ${{ matrix.name }} on ${{ runner.os }}"
       - name: Build Desktop
         uses: ./.github/workflows/build.yml
         with:
@@ -135,12 +106,9 @@ jobs:
             cacheLibrariesPath: H-Slice.mobile-cache
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
+      - uses: actions/checkout@v3
       - name: Debug
-        run: echo "Building ${{ matrix.name }} artifact on ${{ runner.os }}"
-
+        run: echo "Building ${{ matrix.name }} on ${{ runner.os }}"
       - name: Build Mobile
         uses: ./.github/workflows/build.yml
         with:
