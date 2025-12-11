@@ -33,7 +33,6 @@ jobs:
     needs: BuildCaches
     permissions: write-all
     runs-on: macos-latest
-    secrets: inherit
     steps:
       - name: Call mac-universal workflow
         uses: ./.github/workflows/mac-universal.yml
@@ -49,7 +48,6 @@ jobs:
     needs: BuildCaches
     permissions: write-all
     runs-on: windows-2022
-    secrets: inherit
     steps:
       - name: Call Windows build workflow
         uses: ./.github/workflows/build.yml
@@ -68,7 +66,6 @@ jobs:
     needs: BuildCaches
     permissions: write-all
     runs-on: ubuntu-22.04
-    secrets: inherit
     steps:
       - name: Call Linux build workflow
         uses: ./.github/workflows/build.yml
@@ -106,7 +103,6 @@ jobs:
             cachePath: H-Slice.build-ios
             cacheLibrariesPath: H-Slice.mobile-cache
     runs-on: macos-latest
-    secrets: inherit
     steps:
       - name: Call Mobile build workflow
         uses: ./.github/workflows/build.yml
