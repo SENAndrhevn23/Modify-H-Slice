@@ -152,6 +152,30 @@ import states.InitState;
 	public var vsliceNaughtyness:Bool = #if mobile false #else true #end;
 	public var vsliceForceNewTag:Bool = false;
 
+	// Game Renderer Advanced Options
+public var videoResolution:String = "1920x1080";
+public var chromaSubsampling:String = "4:2:0";
+public var pixelFormat:String = "yuv420p";
+public var maxBitrate:Float = 0; // 0 = unlimited
+public var gopSize:String = "Auto";
+public var encoderPreset:String = "Medium";
+public var colorRange:String = "Limited";
+public var hevcProfile:String = "Main";
+public var colorMatrix:String = "BT.709";
+public var colorPrimaries:String = "BT.709";
+public var transferFunction:String = "Gamma 2.2";
+public var hdrMetadata:String = "Off";
+public var bufferSize:Float = 0; // in MB
+public var debanding:String = "Off";
+public var sharpness:String = "Off";
+public var denoise:String = "Off";
+public var audioBitrate:String = "192k";
+public var audioChannels:String = "Stereo";
+public var audioSampleRate:String = "48000";
+public var losslessFrames:Bool = false;
+public var customFFmpegArgs:String = "";
+
+
 	// Export & Import JSON Options
 	public var doExport:Bool = false;
 	public var doImport:Bool = false;
