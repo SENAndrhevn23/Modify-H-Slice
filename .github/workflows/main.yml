@@ -1,4 +1,4 @@
-name: Build the game
+name: Compile
 
 on:
   pull_request:
