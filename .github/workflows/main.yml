@@ -1,15 +1,15 @@
 name: Compile
 
 on:
-  push:
-    branches: [master]
   pull_request:
+    branches: [master]
+  push:
     branches: [master]
   workflow_dispatch:
 
 jobs:
   BuildCaches:
-    name: Build Caches
+    name: Build Caches ${{ matrix.name }}
     permissions: write-all
     strategy:
       matrix:
@@ -18,62 +18,49 @@ jobs:
             os: ubuntu-latest
             setupScript: sh ./setup/unix.sh
             CACHE_NAME: H-Slice.desktop-cache
-
           - name: Mobile
             os: macos-latest
             setupScript: sh ./setup/mobile.sh
             CACHE_NAME: H-Slice.mobile-cache
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v3
-      - name: Debug matrix
-        run: echo "Building caches for ${{ matrix.name }} on ${{ matrix.os }}"
-      - name: Run setup script
-        run: ${{ matrix.setupScript }}
-      - name: Restore cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ matrix.CACHE_NAME }}
-          key: ${{ matrix.CACHE_NAME }}-${{ runner.os }}-${{ hashFiles('**/*') }}
-      - name: Save cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ matrix.CACHE_NAME }}
-          key: ${{ matrix.CACHE_NAME }}-${{ runner.os }}-${{ hashFiles('**/*') }}
+    uses: ./.github/workflows/dependencies.yml
+    with:
+      os: ${{ matrix.os }}
+      CACHE_NAME: ${{ matrix.CACHE_NAME }}
+      setupScript: ${{ matrix.setupScript }}
 
   BuildDesktop:
-    name: Build Desktop
+    name: Build Desktop ${{ matrix.name }}
     needs: BuildCaches
     permissions: write-all
     strategy:
       matrix:
         include:
           - name: Windows
-            os: windows-2022
+            runsOn: windows-2022
             buildArgs: windows
             exportPath: windows
             artifactName: H-Slice.0.2.3.windows
-            artifactPath: export\release\windows\bin\*
+            artifactPath: export/release/windows/bin/*
             cachePath: H-Slice.build-windows
             cacheLibrariesPath: H-Slice.desktop-cache
           - name: Linux
-            os: ubuntu-22.04
+            runsOn: ubuntu-22.04
             buildArgs: linux
             exportPath: linux
             artifactName: H-Slice.0.2.3.linux
             artifactPath: export/release/linux/bin/*
             cachePath: H-Slice.build-linux
             cacheLibrariesPath: H-Slice.desktop-cache
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runsOn }}
     steps:
       - uses: actions/checkout@v3
-      - name: Debug
-        run: echo "Building ${{ matrix.name }} on ${{ runner.os }}"
-      - name: Build Desktop
+      - name: Debug Info
+        run: echo "Building Desktop ${{ matrix.name }} on ${{ runner.os }}"
+      - name: Build
         uses: ./.github/workflows/build.yml
         with:
           name: ${{ matrix.name }}
-          os: ${{ matrix.os }}
+          os: ${{ matrix.runsOn }}
           buildArgs: ${{ matrix.buildArgs }}
           exportPath: ${{ matrix.exportPath }}
           artifactName: ${{ matrix.artifactName }}
@@ -82,14 +69,14 @@ jobs:
           cacheLibrariesPath: ${{ matrix.cacheLibrariesPath }}
 
   BuildMobile:
-    name: Build Mobile
+    name: Build Mobile ${{ matrix.name }}
     needs: BuildCaches
     permissions: write-all
     strategy:
       matrix:
         include:
           - name: Android
-            os: macos-15
+            runsOn: macos-latest
             buildArgs: android
             exportPath: android
             artifactName: H-Slice.0.2.3.android
@@ -97,26 +84,27 @@ jobs:
             cachePath: H-Slice.build-android
             cacheLibrariesPath: H-Slice.mobile-cache
           - name: iOS
-            os: macos-15
+            runsOn: macos-latest
             buildArgs: ios -nosign
             exportPath: ios
             artifactName: H-Slice.0.2.3.ios
             artifactPath: export/release/ios/build/Release-iphoneos/*.ipa
             cachePath: H-Slice.build-ios
             cacheLibrariesPath: H-Slice.mobile-cache
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runsOn }}
     steps:
       - uses: actions/checkout@v3
-      - name: Debug
-        run: echo "Building ${{ matrix.name }} on ${{ runner.os }}"
-      - name: Build Mobile
+      - name: Debug Info
+        run: echo "Building Mobile ${{ matrix.name }} on ${{ runner.os }}"
+      - name: Build
         uses: ./.github/workflows/build.yml
         with:
           name: ${{ matrix.name }}
-          os: ${{ matrix.os }}
+          os: ${{ matrix.runsOn }}
           buildArgs: ${{ matrix.buildArgs }}
           exportPath: ${{ matrix.exportPath }}
           artifactName: ${{ matrix.artifactName }}
           artifactPath: ${{ matrix.artifactPath }}
           cachePath: ${{ matrix.cachePath }}
           cacheLibrariesPath: ${{ matrix.cacheLibrariesPath }}
+        secrets: inherit
